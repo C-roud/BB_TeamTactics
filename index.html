@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>バスケットボール戦術記録ツール</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="court-container">
+        <div class="player team-a" id="blue1"></div>
+        <div class="player team-a" id="blue2"></div>
+        <div class="player team-a" id="blue3"></div>
+        <div class="player team-a" id="blue4"></div>
+        <div class="player team-a" id="blue5"></div>
+
+        <div class="player team-b" id="red1"></div>
+        <div class="player team-b" id="red2"></div>
+        <div class="player team-b" id="red3"></div>
+        <div class="player team-b" id="red4"></div>
+        <div class="player team-b" id="red5"></div>
+    </div>
+
+    <div id="timeline-controls">
+        <div class="timeline-container">
+            <div id="timeline-bar"></div>
+            <div id="timeline-cursor"></div>
+            <div id="timeline-keyframes"></div>
+        </div>
+        <div class="timeline-info">
+            <button id="prev-frame-btn" class="timeline-nav-btn">◀</button>
+            <span>Time: <strong id="time-display">0.0</strong> s</span>
+            <button id="next-frame-btn" class="timeline-nav-btn">▶</button>
+            <button id="save-frame-btn">この時間の配置を保存</button>
+        </div>
+    </div>
+
+    <div id="control-panel">
+        <button id="start-btn">記録開始</button>
+        <button id="stop-btn">記録停止</button>
+        <button id="reset-btn">リセット</button>
+        <button id="import-btn">CSVインポート</button>
+        <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
+        <button id="export-btn">CSVエクスポート</button>
+    </div>
+
+    <div id="status-display">
+        <p><strong>選択中の選手</strong></p>
+        <div id="player-info">
+            <p>選手を選択してください</p>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>
