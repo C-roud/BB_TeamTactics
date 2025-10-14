@@ -35,6 +35,10 @@ body {
     font-weight: bold;
     box-sizing: border-box;
     border: 2px solid rgba(0, 0, 0, 0.5); /* 縁取りを少しつける */
+    /* ▼▼▼ ID表示を見やすくするスタイルを追加 ▼▼▼ */
+    font-size: 14px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.6); /* 文字に影をつけて読みやすくする */
+    user-select: none; /* テキストを選択できないようにする */
 }
 
 /* チームごとの色分け */
@@ -45,6 +49,21 @@ body {
 .team-b {
     background-color: #dc3545; /* 赤色 */
 }
+
+/* ▼▼▼ プレイヤーの初期配置を追加 ▼▼▼ */
+#blue1 { top: 250px; left: 283px; }
+#blue2 { top: 414px; left: 213px; }
+#blue3 { top: 90px; left: 215px; }
+#blue4 { top: 462px; left: 39px; }
+#blue5 { top: 35px; left: 34px; }
+
+#red1 { top: 249px; left: 319px; }
+#red2 { top: 442px; left: 238px; }
+#red3 { top: 62px; left: 238px; }
+#red4 { top: 503px; left: 38px; }
+#red5 { top: 2px; left: 38px; }
+/* ▲▲▲ ここまで ▲▲▲ */
+
 
 /* ボール保持者のスタイル */
 .ball-holder {

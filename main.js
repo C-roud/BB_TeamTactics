@@ -32,17 +32,13 @@ function initialize() {
     importBtn = document.getElementById('import-btn');
     csvFileInput = document.getElementById('csv-file-input');
 
-    // ▼▼▼ イベントリスナーにタッチ操作を追加 ▼▼▼
-    // マウス操作
+    // マウス操作とタッチ操作の両方に対応
     courtContainer.addEventListener('mousedown', dragStart);
     window.addEventListener('mousemove', drag);
     window.addEventListener('mouseup', dragEnd);
-
-    // タッチ操作
     courtContainer.addEventListener('touchstart', dragStart, { passive: false });
     window.addEventListener('touchmove', drag, { passive: false });
     window.addEventListener('touchend', dragEnd);
-    // ▲▲▲ ここまで ▲▲▲
     
     // その他のイベントリスナー
     courtContainer.addEventListener('click', selectPlayer);
@@ -81,51 +77,34 @@ function initialize() {
 //  ドラッグ＆ドロップ関連
 // ===================================================================
 function dragStart(e) {
-    // ▼▼▼ e.target の取得方法をタッチ操作に対応 ▼▼▼
     if (e.type === 'touchstart') {
-        // タッチされた要素を特定
         activePlayer = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
     } else {
-        // マウスでクリックされた要素
         activePlayer = e.target;
     }
-
-    // 要素がプレイヤーでなければ処理を中断
     if (!activePlayer || !activePlayer.classList.contains('player')) {
         activePlayer = null;
     }
-    // ▲▲▲ ここまで ▲▲▲
 }
 
 function drag(e) {
     if (activePlayer === null) return;
-    
-    // ドラッグ中に画面がスクロールするのを防ぐ
     e.preventDefault();
-    
-    // ▼▼▼ マウスとタッチで座標の取得方法を切り替える ▼▼▼
     let clientX, clientY;
     if (e.touches) {
-        // タッチ操作の場合
         clientX = e.touches[0].clientX;
         clientY = e.touches[0].clientY;
     } else {
-        // マウス操作の場合
         clientX = e.clientX;
         clientY = e.clientY;
     }
-    // ▲▲▲ ここまで ▲▲▲
-
     const courtRect = courtContainer.getBoundingClientRect();
     let x = clientX - courtRect.left - (activePlayer.offsetWidth / 2);
     let y = clientY - courtRect.top - (activePlayer.offsetHeight / 2);
-
     x = Math.max(0, Math.min(x, courtRect.width - activePlayer.offsetWidth));
     y = Math.max(0, Math.min(y, courtRect.height - activePlayer.offsetHeight));
-
     activePlayer.style.left = x + 'px';
     activePlayer.style.top = y + 'px';
-
     if (activePlayer === selectedPlayer) {
         updateStatusDisplay();
     }
@@ -135,7 +114,6 @@ function dragEnd() {
     activePlayer = null;
 }
 
-// (ここから下の関数には変更はありませんので、そのまま全てコピーしてください)
 // ===================================================================
 //  プレイヤー選択 と ステータス表示
 // ===================================================================
@@ -154,6 +132,7 @@ function selectPlayer(e) {
     selectedPlayer = clickedPlayer;
     updateStatusDisplay();
 }
+
 function updateStatusDisplay() {
     if (selectedPlayer) {
         const x = Math.round(parseFloat(selectedPlayer.style.left || 0));
@@ -173,6 +152,7 @@ function updateStatusDisplay() {
         playerInfoDiv.innerHTML = '<p>選手を選択してください</p>';
     }
 }
+
 function toggleBallHolder() {
     if (!selectedPlayer) return;
     const isCurrentlyBallHolder = selectedPlayer.classList.contains('ball-holder');
@@ -182,6 +162,7 @@ function toggleBallHolder() {
     }
     updateStatusDisplay();
 }
+
 // ===================================================================
 //  タイムライン と キーフレーム編集
 // ===================================================================
@@ -189,6 +170,7 @@ function navigateTime(amount) {
     const newTime = currentTime + amount;
     jumpToTime(newTime);
 }
+
 function jumpToTime(time) {
     currentTime = Math.max(0, Math.min(parseFloat(time.toFixed(1)), maxTime));
     const frame = recordedData.find(d => parseFloat(d.timestamp) === currentTime);
@@ -205,6 +187,7 @@ function jumpToTime(time) {
     updateTimelineUI();
     if(selectedPlayer) updateStatusDisplay();
 }
+
 function saveCurrentFrame() {
     const frameTimestamp = currentTime.toFixed(1);
     const existingFrameIndex = recordedData.findIndex(d => d.timestamp === frameTimestamp);
@@ -223,11 +206,13 @@ function saveCurrentFrame() {
     exportBtn.disabled = recordedData.length === 0;
     renderTimelineKeyframes();
 }
+
 function updateTimelineUI() {
     timeDisplay.textContent = currentTime.toFixed(1);
     const percentage = (currentTime / maxTime) * 100;
     timelineCursor.style.left = `${percentage}%`;
 }
+
 function renderTimelineKeyframes() {
     timelineKeyframes.innerHTML = '';
     recordedData.forEach(frame => {
@@ -242,6 +227,7 @@ function renderTimelineKeyframes() {
         timelineKeyframes.appendChild(marker);
     });
 }
+
 // ===================================================================
 //  操作パネル機能（記録・リセット・インポート・エクスポート）
 // ===================================================================
@@ -264,6 +250,7 @@ function startRecording() {
     startBtn.disabled = true;
     stopBtn.disabled = false;
 }
+
 function stopRecording() {
     if (!isRecording) return;
     isRecording = false;
@@ -271,6 +258,23 @@ function stopRecording() {
     startBtn.disabled = false;
     stopBtn.disabled = true;
 }
+
+function resetPlayerPositions() {
+    const initialPositions = {
+        'red1': { x: 319, y: 249 }, 'red2': { x: 238, y: 442 }, 'red3': { x: 238, y: 62 },
+        'red4': { x: 38, y: 503 }, 'red5': { x: 38, y: 2 }, 'blue1': { x: 283, y: 250 },
+        'blue2': { x: 213, y: 414 }, 'blue3': { x: 215, y: 90 }, 'blue4': { x: 39, y: 462 },
+        'blue5': { x: 34, y: 35 }
+    };
+    players.forEach(player => {
+        const pos = initialPositions[player.id];
+        if (pos) {
+            player.style.left = `${pos.x}px`;
+            player.style.top = `${pos.y}px`;
+        }
+    });
+}
+
 function resetRecording() {
     if (isRecording) stopRecording();
     const confirmReset = confirm("本当にすべてのデータをリセットしますか？");
@@ -279,8 +283,10 @@ function resetRecording() {
         jumpToTime(0.0);
         exportBtn.disabled = true;
         renderTimelineKeyframes();
+        resetPlayerPositions();
     }
 }
+
 function importCSV(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -323,6 +329,7 @@ function importCSV(event) {
     };
     reader.readAsText(file);
 }
+
 function exportCSV() {
     if (recordedData.length === 0) {
         alert("エクスポートするデータがありません。");
