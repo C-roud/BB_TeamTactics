@@ -32,18 +32,25 @@ function initialize() {
     importBtn = document.getElementById('import-btn');
     csvFileInput = document.getElementById('csv-file-input');
 
-    // イベントリスナーを登録
+    // ▼▼▼ イベントリスナーにタッチ操作を追加 ▼▼▼
+    // マウス操作
     courtContainer.addEventListener('mousedown', dragStart);
     window.addEventListener('mousemove', drag);
     window.addEventListener('mouseup', dragEnd);
-    courtContainer.addEventListener('click', selectPlayer);
+
+    // タッチ操作
+    courtContainer.addEventListener('touchstart', dragStart, { passive: false });
+    window.addEventListener('touchmove', drag, { passive: false });
+    window.addEventListener('touchend', dragEnd);
+    // ▲▲▲ ここまで ▲▲▲
     
+    // その他のイベントリスナー
+    courtContainer.addEventListener('click', selectPlayer);
     startBtn.addEventListener('click', startRecording);
     stopBtn.addEventListener('click', stopRecording);
     resetBtn.addEventListener('click', resetRecording);
     exportBtn.addEventListener('click', exportCSV);
     saveFrameBtn.addEventListener('click', saveCurrentFrame);
-
     prevFrameBtn.addEventListener('click', () => navigateTime(-0.5));
     nextFrameBtn.addEventListener('click', () => navigateTime(0.5));
     importBtn.addEventListener('click', () => csvFileInput.click());
@@ -74,18 +81,44 @@ function initialize() {
 //  ドラッグ＆ドロップ関連
 // ===================================================================
 function dragStart(e) {
-    if (e.target.classList.contains('player')) {
+    // ▼▼▼ e.target の取得方法をタッチ操作に対応 ▼▼▼
+    if (e.type === 'touchstart') {
+        // タッチされた要素を特定
+        activePlayer = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+    } else {
+        // マウスでクリックされた要素
         activePlayer = e.target;
     }
+
+    // 要素がプレイヤーでなければ処理を中断
+    if (!activePlayer || !activePlayer.classList.contains('player')) {
+        activePlayer = null;
+    }
+    // ▲▲▲ ここまで ▲▲▲
 }
 
 function drag(e) {
     if (activePlayer === null) return;
     
-    e.preventDefault(); // ドラッグ中のテキスト選択などを防ぐ
+    // ドラッグ中に画面がスクロールするのを防ぐ
+    e.preventDefault();
+    
+    // ▼▼▼ マウスとタッチで座標の取得方法を切り替える ▼▼▼
+    let clientX, clientY;
+    if (e.touches) {
+        // タッチ操作の場合
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else {
+        // マウス操作の場合
+        clientX = e.clientX;
+        clientY = e.clientY;
+    }
+    // ▲▲▲ ここまで ▲▲▲
+
     const courtRect = courtContainer.getBoundingClientRect();
-    let x = e.clientX - courtRect.left - (activePlayer.offsetWidth / 2);
-    let y = e.clientY - courtRect.top - (activePlayer.offsetHeight / 2);
+    let x = clientX - courtRect.left - (activePlayer.offsetWidth / 2);
+    let y = clientY - courtRect.top - (activePlayer.offsetHeight / 2);
 
     x = Math.max(0, Math.min(x, courtRect.width - activePlayer.offsetWidth));
     y = Math.max(0, Math.min(y, courtRect.height - activePlayer.offsetHeight));
@@ -102,12 +135,12 @@ function dragEnd() {
     activePlayer = null;
 }
 
+// (ここから下の関数には変更はありませんので、そのまま全てコピーしてください)
 // ===================================================================
 //  プレイヤー選択 と ステータス表示
 // ===================================================================
 function selectPlayer(e) {
     const clickedPlayer = e.target;
-
     if (!clickedPlayer.classList.contains('player')) {
         if (selectedPlayer) {
             selectedPlayer.classList.remove('selected');
@@ -116,13 +149,11 @@ function selectPlayer(e) {
         }
         return;
     }
-
     players.forEach(p => p.classList.remove('selected'));
     clickedPlayer.classList.add('selected');
     selectedPlayer = clickedPlayer;
     updateStatusDisplay();
 }
-
 function updateStatusDisplay() {
     if (selectedPlayer) {
         const x = Math.round(parseFloat(selectedPlayer.style.left || 0));
@@ -142,7 +173,6 @@ function updateStatusDisplay() {
         playerInfoDiv.innerHTML = '<p>選手を選択してください</p>';
     }
 }
-
 function toggleBallHolder() {
     if (!selectedPlayer) return;
     const isCurrentlyBallHolder = selectedPlayer.classList.contains('ball-holder');
@@ -152,7 +182,6 @@ function toggleBallHolder() {
     }
     updateStatusDisplay();
 }
-
 // ===================================================================
 //  タイムライン と キーフレーム編集
 // ===================================================================
@@ -160,10 +189,8 @@ function navigateTime(amount) {
     const newTime = currentTime + amount;
     jumpToTime(newTime);
 }
-
 function jumpToTime(time) {
     currentTime = Math.max(0, Math.min(parseFloat(time.toFixed(1)), maxTime));
-
     const frame = recordedData.find(d => parseFloat(d.timestamp) === currentTime);
     if (frame) {
         players.forEach(player => {
@@ -178,35 +205,29 @@ function jumpToTime(time) {
     updateTimelineUI();
     if(selectedPlayer) updateStatusDisplay();
 }
-
 function saveCurrentFrame() {
     const frameTimestamp = currentTime.toFixed(1);
     const existingFrameIndex = recordedData.findIndex(d => d.timestamp === frameTimestamp);
-
     const positions = Array.from(players).map(player => ({
         id: player.id,
         x: Math.round(parseFloat(player.style.left || 0)),
         y: Math.round(parseFloat(player.style.top || 0)),
         ball: player.classList.contains('ball-holder') ? 1 : 0
     }));
-
     if (existingFrameIndex > -1) {
         recordedData[existingFrameIndex].positions = positions;
     } else {
         recordedData.push({ timestamp: frameTimestamp, positions: positions });
         recordedData.sort((a, b) => parseFloat(a.timestamp) - parseFloat(b.timestamp));
     }
-    
     exportBtn.disabled = recordedData.length === 0;
     renderTimelineKeyframes();
 }
-
 function updateTimelineUI() {
     timeDisplay.textContent = currentTime.toFixed(1);
     const percentage = (currentTime / maxTime) * 100;
     timelineCursor.style.left = `${percentage}%`;
 }
-
 function renderTimelineKeyframes() {
     timelineKeyframes.innerHTML = '';
     recordedData.forEach(frame => {
@@ -214,16 +235,13 @@ function renderTimelineKeyframes() {
         marker.className = 'keyframe-marker';
         const percentage = (parseFloat(frame.timestamp) / maxTime) * 100;
         marker.style.left = `${percentage}%`;
-        
         marker.addEventListener('click', (e) => {
             e.stopPropagation();
             jumpToTime(parseFloat(frame.timestamp));
         });
-        
         timelineKeyframes.appendChild(marker);
     });
 }
-
 // ===================================================================
 //  操作パネル機能（記録・リセット・インポート・エクスポート）
 // ===================================================================
@@ -231,7 +249,6 @@ function startRecording() {
     if (isRecording) return;
     isRecording = true;
     startTime = Date.now() - (currentTime * 1000);
-
     recordingInterval = setInterval(() => {
         const elapsed = (Date.now() - startTime) / 1000;
         const newTime = parseFloat((Math.floor(elapsed * 2) / 2).toFixed(1));
@@ -244,11 +261,9 @@ function startRecording() {
         saveCurrentFrame();
         updateTimelineUI();
     }, 500);
-
     startBtn.disabled = true;
     stopBtn.disabled = false;
 }
-
 function stopRecording() {
     if (!isRecording) return;
     isRecording = false;
@@ -256,7 +271,6 @@ function stopRecording() {
     startBtn.disabled = false;
     stopBtn.disabled = true;
 }
-
 function resetRecording() {
     if (isRecording) stopRecording();
     const confirmReset = confirm("本当にすべてのデータをリセットしますか？");
@@ -267,29 +281,24 @@ function resetRecording() {
         renderTimelineKeyframes();
     }
 }
-
 function importCSV(event) {
     const file = event.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (e) => {
         try {
             const csvText = e.target.result;
             const lines = csvText.trim().split('\n');
             const headers = lines.shift().trim().split(',');
-
             if (headers[0] !== 'timestamp') {
                 throw new Error('無効なCSVファイル形式です。ヘッダーが正しくありません。');
             }
-
             const newRecordedData = lines.map(line => {
                 const values = line.trim().split(',');
                 const frame = {
                     timestamp: values[0],
                     positions: []
                 };
-
                 for (let i = 1; i < headers.length; i += 3) {
                     const id = headers[i].replace('_x', '');
                     frame.positions.push({
@@ -301,14 +310,11 @@ function importCSV(event) {
                 }
                 return frame;
             });
-            
             recordedData = newRecordedData;
             alert(`${file.name} を正常にインポートしました。`);
-
             jumpToTime(0.0);
             renderTimelineKeyframes();
             exportBtn.disabled = recordedData.length === 0;
-
         } catch (error) {
             alert(`インポートに失敗しました。\nエラー: ${error.message}`);
         } finally {
@@ -317,19 +323,16 @@ function importCSV(event) {
     };
     reader.readAsText(file);
 }
-
 function exportCSV() {
     if (recordedData.length === 0) {
         alert("エクスポートするデータがありません。");
         return;
     }
-
     const playerIDs = Array.from(players).map(p => p.id).sort();
     const headers = ['timestamp'];
     playerIDs.forEach(id => {
         headers.push(`${id}_x`, `${id}_y`, `${id}_ball`);
     });
-
     const rows = recordedData.map(frame => {
         const row = [frame.timestamp];
         playerIDs.forEach(id => {
@@ -342,13 +345,11 @@ function exportCSV() {
         });
         return row.join(',');
     });
-
     const csvContent = [headers.join(','), ...rows].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-
     const now = new Date();
     const YYYY = now.getFullYear();
     const MM = String(now.getMonth() + 1).padStart(2, '0');
@@ -357,7 +358,6 @@ function exportCSV() {
     const MIN = String(now.getMinutes()).padStart(2, '0');
     const SS = String(now.getSeconds()).padStart(2, '0');
     const fileName = `tactics_${YYYY}${MM}${DD}_${HH}${MIN}${SS}.csv`;
-
     link.setAttribute("download", fileName);
     document.body.appendChild(link);
     link.click();
