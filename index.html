@@ -6,15 +6,6 @@
     <title>バスケットボール戦術記録ツール</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-1XLND9KX9Y"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-1XLND9KX9Y');
-</script>
 <body>
 
     <div id="court-container">
@@ -29,7 +20,7 @@
         <div class="player team-b" id="red3">r3</div>
         <div class="player team-b" id="red4">r4</div>
         <div class="player team-b" id="red5">r5</div>
-        </div>
+    </div>
 
     <div id="timeline-controls">
         <div class="timeline-container">
@@ -38,16 +29,15 @@
             <div id="timeline-keyframes"></div>
         </div>
         <div class="timeline-info">
+            <button id="play-pause-btn" class="timeline-nav-btn">再生 ▶</button>
             <button id="prev-frame-btn" class="timeline-nav-btn">◀</button>
             <span>Time: <strong id="time-display">0.0</strong> s</span>
             <button id="next-frame-btn" class="timeline-nav-btn">▶</button>
             <button id="save-frame-btn">この時間の配置を保存</button>
         </div>
-    </div>
+        </div>
 
     <div id="control-panel">
-        <button id="start-btn">記録開始</button>
-        <button id="stop-btn">記録停止</button>
         <button id="reset-btn">リセット</button>
         <button id="import-btn">CSVインポート</button>
         <input type="file" id="csv-file-input" accept=".csv" style="display: none;">

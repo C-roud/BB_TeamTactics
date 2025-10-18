@@ -1,10 +1,11 @@
 // --- グローバル変数 ---
-let courtContainer, players, playerInfoDiv, startBtn, stopBtn, resetBtn, exportBtn, saveFrameBtn, timeDisplay, timelineCursor, timelineKeyframes, prevFrameBtn, nextFrameBtn, importBtn, csvFileInput;
+let courtContainer, players, playerInfoDiv, resetBtn, exportBtn, saveFrameBtn, timeDisplay, timelineCursor, timelineKeyframes, prevFrameBtn, nextFrameBtn, importBtn, csvFileInput, playPauseBtn;
 let activePlayer = null, selectedPlayer = null;
-let isRecording = false, recordingInterval = null, startTime = 0;
 let recordedData = [];
 let currentTime = 0.0;
-const maxTime = 24.0; // タイムラインの最大時間（24秒）
+const maxTime = 24.0;
+let isPlaying = false; // 再生中かどうかの状態
+let playbackInterval = null; // 再生タイマーのID
 
 // ===================================================================
 //  初期化処理
@@ -19,8 +20,6 @@ function initialize() {
     courtContainer = document.getElementById('court-container');
     players = document.querySelectorAll('.player');
     playerInfoDiv = document.getElementById('player-info');
-    startBtn = document.getElementById('start-btn');
-    stopBtn = document.getElementById('stop-btn');
     resetBtn = document.getElementById('reset-btn');
     exportBtn = document.getElementById('export-btn');
     saveFrameBtn = document.getElementById('save-frame-btn');
@@ -31,6 +30,7 @@ function initialize() {
     nextFrameBtn = document.getElementById('next-frame-btn');
     importBtn = document.getElementById('import-btn');
     csvFileInput = document.getElementById('csv-file-input');
+    playPauseBtn = document.getElementById('play-pause-btn');
 
     // マウス操作とタッチ操作の両方に対応
     courtContainer.addEventListener('mousedown', dragStart);
@@ -40,10 +40,8 @@ function initialize() {
     window.addEventListener('touchmove', drag, { passive: false });
     window.addEventListener('touchend', dragEnd);
     
-    // その他のイベントリスナー
+    // イベントリスナーを登録
     courtContainer.addEventListener('click', selectPlayer);
-    startBtn.addEventListener('click', startRecording);
-    stopBtn.addEventListener('click', stopRecording);
     resetBtn.addEventListener('click', resetRecording);
     exportBtn.addEventListener('click', exportCSV);
     saveFrameBtn.addEventListener('click', saveCurrentFrame);
@@ -51,10 +49,15 @@ function initialize() {
     nextFrameBtn.addEventListener('click', () => navigateTime(0.5));
     importBtn.addEventListener('click', () => csvFileInput.click());
     csvFileInput.addEventListener('change', importCSV);
+    playPauseBtn.addEventListener('click', togglePlayback); // 再生・停止ボタンのイベント
 
     window.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowRight') navigateTime(0.5);
         else if (e.key === 'ArrowLeft') navigateTime(-0.5);
+        else if (e.key === ' ') { // スペースキーで再生/停止
+            e.preventDefault();
+            togglePlayback();
+        }
     });
 
     document.getElementById('timeline-bar').addEventListener('click', (e) => {
@@ -67,7 +70,6 @@ function initialize() {
     });
 
     // 初期状態の設定
-    stopBtn.disabled = true;
     exportBtn.disabled = true;
     updateStatusDisplay();
     updateTimelineUI();
@@ -229,36 +231,43 @@ function renderTimelineKeyframes() {
 }
 
 // ===================================================================
-//  操作パネル機能（記録・リセット・インポート・エクスポート）
+//  再生・停止機能
 // ===================================================================
-function startRecording() {
-    if (isRecording) return;
-    isRecording = true;
-    startTime = Date.now() - (currentTime * 1000);
-    recordingInterval = setInterval(() => {
-        const elapsed = (Date.now() - startTime) / 1000;
-        const newTime = parseFloat((Math.floor(elapsed * 2) / 2).toFixed(1));
-        if (newTime > maxTime) {
-            stopRecording();
-            jumpToTime(maxTime);
-            return;
+function togglePlayback() {
+    if (isPlaying) {
+        pausePlayback();
+    } else {
+        startPlayback();
+    }
+}
+
+function startPlayback() {
+    if (recordedData.length === 0) return; // データがなければ何もしない
+    isPlaying = true;
+    playPauseBtn.textContent = '停止 ⏸';
+    
+    // もし再生が終点に達していたら、最初から再生する
+    if (currentTime >= maxTime) {
+        jumpToTime(0.0);
+    }
+    
+    playbackInterval = setInterval(() => {
+        navigateTime(0.5);
+        if (currentTime >= maxTime) {
+            pausePlayback();
         }
-        currentTime = newTime;
-        saveCurrentFrame();
-        updateTimelineUI();
-    }, 500);
-    startBtn.disabled = true;
-    stopBtn.disabled = false;
+    }, 500); // 0.5秒ごとにコマ送り
 }
 
-function stopRecording() {
-    if (!isRecording) return;
-    isRecording = false;
-    clearInterval(recordingInterval);
-    startBtn.disabled = false;
-    stopBtn.disabled = true;
+function pausePlayback() {
+    isPlaying = false;
+    playPauseBtn.textContent = '再生 ▶';
+    clearInterval(playbackInterval);
 }
 
+// ===================================================================
+//  操作パネル機能
+// ===================================================================
 function resetPlayerPositions() {
     const initialPositions = {
         'red1': { x: 319, y: 249 }, 'red2': { x: 238, y: 442 }, 'red3': { x: 238, y: 62 },
@@ -276,7 +285,7 @@ function resetPlayerPositions() {
 }
 
 function resetRecording() {
-    if (isRecording) stopRecording();
+    pausePlayback(); // リセット時に再生中なら停止する
     const confirmReset = confirm("本当にすべてのデータをリセットしますか？");
     if (confirmReset) {
         recordedData = [];
@@ -335,24 +344,49 @@ function exportCSV() {
         alert("エクスポートするデータがありません。");
         return;
     }
-    const playerIDs = Array.from(players).map(p => p.id).sort();
-    const headers = ['timestamp'];
-    playerIDs.forEach(id => {
-        headers.push(`${id}_x`, `${id}_y`, `${id}_ball`);
+
+    // 1. 全てのタイムスタンプを0.5秒ごとに生成
+    const lastTimestamp = Math.max(...recordedData.map(d => parseFloat(d.timestamp)));
+    const allTimestamps = [];
+    for (let t = 0; t <= lastTimestamp; t += 0.5) {
+        allTimestamps.push(t.toFixed(1));
+    }
+    
+    // 2. 補完されたデータを作成
+    const interpolatedData = allTimestamps.map(ts => {
+        const frame = { timestamp: ts, positions: {} };
+        players.forEach(player => {
+            // ts以前で最も新しいキーフレームを探す
+            const lastRelevantFrame = recordedData
+                .filter(d => parseFloat(d.timestamp) <= parseFloat(ts))
+                .pop();
+            
+            let pos = null;
+            if (lastRelevantFrame) {
+                pos = lastRelevantFrame.positions.find(p => p.id === player.id);
+            }
+            
+            frame.positions[player.id] = pos || { x: 0, y: 0, ball: 0 };
+        });
+        return frame;
     });
-    const rows = recordedData.map(frame => {
+
+    // 3. CSV文字列を生成
+    const playerIDs = Array.from(players).map(p => p.id).sort();
+    const headers = ['timestamp', ...playerIDs.flatMap(id => [`${id}_x`, `${id}_y`, `${id}_ball`])];
+    
+    const rows = interpolatedData.map(frame => {
         const row = [frame.timestamp];
         playerIDs.forEach(id => {
-            const pos = frame.positions.find(p => p.id === id);
-            if (pos) {
-                row.push(pos.x, pos.y, pos.ball);
-            } else {
-                row.push('', '', '');
-            }
+            const pos = frame.positions[id];
+            row.push(pos.x, pos.y, pos.ball);
         });
         return row.join(',');
     });
+    
     const csvContent = [headers.join(','), ...rows].join('\n');
+
+    // 4. ダウンロード処理
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
