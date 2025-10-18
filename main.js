@@ -73,6 +73,11 @@ function initialize() {
     exportBtn.disabled = true;
     updateStatusDisplay();
     updateTimelineUI();
+    
+    // ▼▼▼【今回の修正点】▼▼▼
+    // アプリ起動時にCSSの初期配置をJavaScriptのスタイルに適用する
+    resetPlayerPositions(); 
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲
 }
 
 // ===================================================================
@@ -137,8 +142,11 @@ function selectPlayer(e) {
 
 function updateStatusDisplay() {
     if (selectedPlayer) {
-        const x = Math.round(parseFloat(selectedPlayer.style.left || 0));
-        const y = Math.round(parseFloat(selectedPlayer.style.top || 0));
+        // ▼▼▼ バグ修正: CSSから初期値を取得する処理を追加 ▼▼▼
+        const style = window.getComputedStyle(selectedPlayer);
+        const x = Math.round(parseFloat(selectedPlayer.style.left || style.left || 0));
+        const y = Math.round(parseFloat(selectedPlayer.style.top || style.top || 0));
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲
         const isBallHolder = selectedPlayer.classList.contains('ball-holder');
         playerInfoDiv.innerHTML = `
             <div class="info-item"><span>選手ID:</span><span>${selectedPlayer.id}</span></div>
@@ -193,12 +201,19 @@ function jumpToTime(time) {
 function saveCurrentFrame() {
     const frameTimestamp = currentTime.toFixed(1);
     const existingFrameIndex = recordedData.findIndex(d => d.timestamp === frameTimestamp);
-    const positions = Array.from(players).map(player => ({
-        id: player.id,
-        x: Math.round(parseFloat(player.style.left || 0)),
-        y: Math.round(parseFloat(player.style.top || 0)),
-        ball: player.classList.contains('ball-holder') ? 1 : 0
-    }));
+    
+    // ▼▼▼ バグ修正: CSSから初期値を取得する処理を追加 ▼▼▼
+    const positions = Array.from(players).map(player => {
+        const style = window.getComputedStyle(player);
+        return {
+            id: player.id,
+            x: Math.round(parseFloat(player.style.left || style.left || 0)),
+            y: Math.round(parseFloat(player.style.top || style.top || 0)),
+            ball: player.classList.contains('ball-holder') ? 1 : 0
+        };
+    });
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲
+
     if (existingFrameIndex > -1) {
         recordedData[existingFrameIndex].positions = positions;
     } else {
@@ -246,7 +261,6 @@ function startPlayback() {
     isPlaying = true;
     playPauseBtn.textContent = '停止 ⏸';
     
-    // もし再生が終点に達していたら、最初から再生する
     if (currentTime >= maxTime) {
         jumpToTime(0.0);
     }
@@ -366,6 +380,17 @@ function exportCSV() {
                 pos = lastRelevantFrame.positions.find(p => p.id === player.id);
             }
             
+            // ▼▼▼ バグ修正: 直前のデータがない(t=0)場合はCSSから読み取る ▼▼▼
+            if (lastRelevantFrame === undefined) { 
+                const style = window.getComputedStyle(player);
+                pos = {
+                    x: Math.round(parseFloat(style.left || 0)),
+                    y: Math.round(parseFloat(style.top || 0)),
+                    ball: 0 // t=0ではボール保持者はいないと仮定
+                };
+            }
+            // ▲▲▲▲▲▲▲▲▲▲▲▲▲
+
             frame.positions[player.id] = pos || { x: 0, y: 0, ball: 0 };
         });
         return frame;
