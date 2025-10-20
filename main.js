@@ -1,22 +1,51 @@
+// --- グローバル定数 ---
+const PLAYER_IDS = ['blue1', 'blue2', 'blue3', 'blue4', 'blue5', 'red1', 'red2', 'red3', 'red4', 'red5'];
+
+// ▼▼▼【あなたのエリア定義に合わせて、この10個の説明を書き換えてください】▼▼▼
+const AREA_DEFINITIONS = [
+    { label: "エリア1", description: "右コーナー3P" },
+    { label: "エリア2", description: "右ウィング3P" },
+    { label: "エリア3", description: "トップ3P" },
+    { label: "エリア4", description: "左ウィング3P" },
+    { label: "エリア5", description: "左コーナー3P" },
+    { label: "エリア6", description: "右ミドル" },
+    { label: "エリア7", description: "左ミドル" },
+    { label: "エリア8", description: "ハイポスト" },
+    { label: "エリア9", description: "ゴール下(右)" },
+    { label: "エリア10", description: "ゴール下(左)" }
+];
+// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
 // --- グローバル変数 ---
+// モーダル関連
+let modalOverlay, mainContent, importProfilesBtn, exportProfilesBtn, profilesCsvInput, playerProfilesForm, proceedToBoardBtn;
+// 戦術ボード関連
 let courtContainer, players, playerInfoDiv, resetBtn, exportBtn, saveFrameBtn, timeDisplay, timelineCursor, timelineKeyframes, prevFrameBtn, nextFrameBtn, importBtn, csvFileInput, playPauseBtn;
+// 状態・データ管理
 let activePlayer = null, selectedPlayer = null;
-let recordedData = [];
+let recordedData = []; // 戦術データ
+let playerProfiles = {}; // 選手データ
 let currentTime = 0.0;
 const maxTime = 24.0;
-let isPlaying = false; // 再生中かどうかの状態
-let playbackInterval = null; // 再生タイマーのID
+let isPlaying = false;
+let playbackInterval = null;
 
 // ===================================================================
 //  初期化処理
 // ===================================================================
 document.addEventListener('DOMContentLoaded', initialize);
 
-/**
- * アプリケーションを初期化する関数
- */
 function initialize() {
-    // HTML要素をまとめて取得
+    // --- モーダル関連の要素を取得 ---
+    modalOverlay = document.getElementById('modal-overlay');
+    mainContent = document.getElementById('main-content');
+    importProfilesBtn = document.getElementById('import-profiles-btn');
+    exportProfilesBtn = document.getElementById('export-profiles-btn');
+    profilesCsvInput = document.getElementById('profiles-csv-input');
+    playerProfilesForm = document.getElementById('player-profiles-form');
+    proceedToBoardBtn = document.getElementById('proceed-to-board-btn');
+
+    // --- 戦術ボード関連の要素を取得 ---
     courtContainer = document.getElementById('court-container');
     players = document.querySelectorAll('.player');
     playerInfoDiv = document.getElementById('player-info');
@@ -28,11 +57,21 @@ function initialize() {
     timelineKeyframes = document.getElementById('timeline-keyframes');
     prevFrameBtn = document.getElementById('prev-frame-btn');
     nextFrameBtn = document.getElementById('next-frame-btn');
-    importBtn = document.getElementById('import-btn');
-    csvFileInput = document.getElementById('csv-file-input');
+    importBtn = document.getElementById('import-btn'); // 戦術CSVインポート
+    csvFileInput = document.getElementById('csv-file-input'); // 戦術CSVインポート
     playPauseBtn = document.getElementById('play-pause-btn');
 
-    // マウス操作とタッチ操作の両方に対応
+    // --- モーダル関連のイベントリスナー ---
+    importProfilesBtn.addEventListener('click', () => profilesCsvInput.click());
+    profilesCsvInput.addEventListener('change', importPlayerProfiles);
+    exportProfilesBtn.addEventListener('click', exportPlayerProfiles);
+    proceedToBoardBtn.addEventListener('click', closeModal);
+    // フォームの入力内容をリアルタイムで監視
+    playerProfilesForm.addEventListener('input', validateProfileForm);
+    // 選手登録フォームを動的に生成
+    generateProfileForm();
+
+    // --- 戦術ボード関連のイベントリスナー ---
     courtContainer.addEventListener('mousedown', dragStart);
     window.addEventListener('mousemove', drag);
     window.addEventListener('mouseup', dragEnd);
@@ -40,21 +79,20 @@ function initialize() {
     window.addEventListener('touchmove', drag, { passive: false });
     window.addEventListener('touchend', dragEnd);
     
-    // イベントリスナーを登録
     courtContainer.addEventListener('click', selectPlayer);
     resetBtn.addEventListener('click', resetRecording);
-    exportBtn.addEventListener('click', exportCSV);
+    exportBtn.addEventListener('click', exportTacticsCSV); 
     saveFrameBtn.addEventListener('click', saveCurrentFrame);
     prevFrameBtn.addEventListener('click', () => navigateTime(-0.5));
     nextFrameBtn.addEventListener('click', () => navigateTime(0.5));
     importBtn.addEventListener('click', () => csvFileInput.click());
-    csvFileInput.addEventListener('change', importCSV);
-    playPauseBtn.addEventListener('click', togglePlayback); // 再生・停止ボタンのイベント
+    csvFileInput.addEventListener('change', importTacticsCSV);
+    playPauseBtn.addEventListener('click', togglePlayback);
 
     window.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowRight') navigateTime(0.5);
         else if (e.key === 'ArrowLeft') navigateTime(-0.5);
-        else if (e.key === ' ') { // スペースキーで再生/停止
+        else if (e.key === ' ') {
             e.preventDefault();
             togglePlayback();
         }
@@ -69,15 +107,152 @@ function initialize() {
         jumpToTime(newTime);
     });
 
-    // 初期状態の設定
+    // --- 戦術ボードの初期状態設定 ---
     exportBtn.disabled = true;
     updateStatusDisplay();
     updateTimelineUI();
-    
-    // ▼▼▼【今回の修正点】▼▼▼
-    // アプリ起動時にCSSの初期配置をJavaScriptのスタイルに適用する
     resetPlayerPositions(); 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲
+}
+
+// ===================================================================
+//  選手データ・モーダル関連の関数
+// ===================================================================
+
+/**
+ * ▼▼▼【更新点】▼▼▼
+ * 選手登録フォームのHTMLを動的に生成する (ヘッダーラベルに説明文を追加)
+ */
+function generateProfileForm() {
+    // 1. 説明文の追加
+    let formHTML = '<p class="form-instruction"><b>入力形式:</b> 身長は[cm]、各エリアのシュート率は <b>0〜100 の数字（百分率）</b>で入力してください (例: 80)。</p>';
+    
+    // 2. ヘッダー行の追加 (ラベルに説明文を<br>で追加)
+    formHTML += `<div class="profile-input-row header-row">`;
+    formHTML += `<label>選手ID</label>`;
+    formHTML += `<label>身長<br>(cm)</label>`;
+    AREA_DEFINITIONS.forEach((area, index) => {
+        // 例: "エリア1<br>(右コーナー3P)" というHTMLを生成
+        formHTML += `<label title="${area.description}">${area.label}<br>(${area.description})</label>`;
+    });
+    formHTML += `</div>`;
+
+    // 3. 各選手の入力行を生成
+    PLAYER_IDS.forEach(id => {
+        formHTML += `<div class="profile-input-row" id="profile-row-${id}">`;
+        formHTML += `<label>${id.toUpperCase()}</label>`; // Column 1: ID
+        formHTML += `<input type="number" name="height_${id}" placeholder="cm" data-id="${id}" data-field="height">`; // Column 2: Height
+        AREA_DEFINITIONS.forEach((area, index) => { // Columns 3-12: Areas
+            formHTML += `<input type="number" name="area_${index + 1}_${id}" placeholder="%" min="0" max="100" data-id="${id}" data-field="area_${index + 1}">`;
+        });
+        formHTML += `</div>`;
+    });
+    playerProfilesForm.innerHTML = formHTML;
+}
+
+/**
+ * フォームがすべて入力されているか検証し、OKならボタンを有効化
+ */
+function validateProfileForm() {
+    let allValid = true;
+    playerProfiles = {};
+    
+    for (const id of PLAYER_IDS) {
+        const heightInput = document.querySelector(`input[name="height_${id}"]`);
+        if (heightInput.value.trim() === '') allValid = false;
+        
+        playerProfiles[id] = {
+            height: heightInput.value || 0
+        };
+        
+        for (let i = 1; i <= AREA_DEFINITIONS.length; i++) {
+            const areaInput = document.querySelector(`input[name="area_${i}_${id}"]`);
+            if (areaInput.value.trim() === '') allValid = false;
+            playerProfiles[id][`area_${i}`] = areaInput.value || 0;
+        }
+    }
+    
+    proceedToBoardBtn.disabled = !allValid;
+    return allValid;
+}
+
+/**
+ * モーダルを閉じて戦術ボードへ進む
+ */
+function closeModal() {
+    modalOverlay.style.display = 'none'; // モーダルを非表示
+    mainContent.classList.remove('content-locked'); // メインコンテンツのロック解除
+    document.body.style.overflow = 'auto'; // ページのスクロールを許可
+}
+
+/**
+ * 選手プロフィールCSVをインポートする
+ */
+function importPlayerProfiles(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const csvText = e.target.result;
+            const lines = csvText.trim().split('\n');
+            const headers = lines.shift().trim().split(','); // "player_id", "height", "area_1", ...
+
+            lines.forEach(line => {
+                const values = line.trim().split(',');
+                const profile = {};
+                headers.forEach((header, i) => profile[header] = values[i]);
+                
+                const id = profile.player_id;
+                if (PLAYER_IDS.includes(id)) {
+                    // フォームに値を設定
+                    document.querySelector(`input[name="height_${id}"]`).value = profile.height;
+                    for (let i = 1; i <= AREA_DEFINITIONS.length; i++) {
+                        document.querySelector(`input[name="area_${i}_${id}"]`).value = profile[`area_${i}`];
+                    }
+                }
+            });
+            validateProfileForm();
+            alert('選手プロフィールをインポートしました。');
+        } catch (error) {
+            alert(`インポートに失敗しました。\nエラー: ${error.message}`);
+        } finally {
+            profilesCsvInput.value = '';
+        }
+    };
+    reader.readAsText(file);
+}
+
+/**
+ * 選手プロフィールCSVをエクスポートする
+ */
+function exportPlayerProfiles() {
+    if (!validateProfileForm()) {
+        alert('CSVをエクスポートするには、全ての選手データを入力してください。');
+        return;
+    }
+    
+    // CSVのヘッダーは "area_1", "area_2"... のまま変更しない
+    const headers = ['player_id', 'height', ...AREA_DEFINITIONS.map((area, i) => `area_${i + 1}`)];
+    const rows = [headers.join(',')];
+    
+    for (const id of PLAYER_IDS) {
+        const row = [
+            id,
+            playerProfiles[id].height,
+            ...AREA_DEFINITIONS.map((area, i) => playerProfiles[id][`area_${i + 1}`])
+        ];
+        rows.push(row.join(','));
+    }
+    
+    const csvContent = rows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "player_profiles.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
 // ===================================================================
@@ -142,11 +317,9 @@ function selectPlayer(e) {
 
 function updateStatusDisplay() {
     if (selectedPlayer) {
-        // ▼▼▼ バグ修正: CSSから初期値を取得する処理を追加 ▼▼▼
         const style = window.getComputedStyle(selectedPlayer);
         const x = Math.round(parseFloat(selectedPlayer.style.left || style.left || 0));
         const y = Math.round(parseFloat(selectedPlayer.style.top || style.top || 0));
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲
         const isBallHolder = selectedPlayer.classList.contains('ball-holder');
         playerInfoDiv.innerHTML = `
             <div class="info-item"><span>選手ID:</span><span>${selectedPlayer.id}</span></div>
@@ -202,7 +375,6 @@ function saveCurrentFrame() {
     const frameTimestamp = currentTime.toFixed(1);
     const existingFrameIndex = recordedData.findIndex(d => d.timestamp === frameTimestamp);
     
-    // ▼▼▼ バグ修正: CSSから初期値を取得する処理を追加 ▼▼▼
     const positions = Array.from(players).map(player => {
         const style = window.getComputedStyle(player);
         return {
@@ -212,7 +384,6 @@ function saveCurrentFrame() {
             ball: player.classList.contains('ball-holder') ? 1 : 0
         };
     });
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     if (existingFrameIndex > -1) {
         recordedData[existingFrameIndex].positions = positions;
@@ -257,7 +428,7 @@ function togglePlayback() {
 }
 
 function startPlayback() {
-    if (recordedData.length === 0) return; // データがなければ何もしない
+    if (recordedData.length === 0) return;
     isPlaying = true;
     playPauseBtn.textContent = '停止 ⏸';
     
@@ -270,7 +441,7 @@ function startPlayback() {
         if (currentTime >= maxTime) {
             pausePlayback();
         }
-    }, 500); // 0.5秒ごとにコマ送り
+    }, 500);
 }
 
 function pausePlayback() {
@@ -280,7 +451,7 @@ function pausePlayback() {
 }
 
 // ===================================================================
-//  操作パネル機能
+//  操作パネル機能（リセット・インポート・エクスポート）
 // ===================================================================
 function resetPlayerPositions() {
     const initialPositions = {
@@ -299,8 +470,8 @@ function resetPlayerPositions() {
 }
 
 function resetRecording() {
-    pausePlayback(); // リセット時に再生中なら停止する
-    const confirmReset = confirm("本当にすべてのデータをリセットしますか？");
+    pausePlayback();
+    const confirmReset = confirm("本当にすべての戦術データをリセットしますか？");
     if (confirmReset) {
         recordedData = [];
         jumpToTime(0.0);
@@ -310,7 +481,10 @@ function resetRecording() {
     }
 }
 
-function importCSV(event) {
+/**
+ * 戦術CSVをインポートする
+ */
+function importTacticsCSV(event) {
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
@@ -320,7 +494,7 @@ function importCSV(event) {
             const lines = csvText.trim().split('\n');
             const headers = lines.shift().trim().split(',');
             if (headers[0] !== 'timestamp') {
-                throw new Error('無効なCSVファイル形式です。ヘッダーが正しくありません。');
+                throw new Error('無効な戦術CSVファイル形式です。ヘッダーが正しくありません。');
             }
             const newRecordedData = lines.map(line => {
                 const values = line.trim().split(',');
@@ -353,24 +527,24 @@ function importCSV(event) {
     reader.readAsText(file);
 }
 
-function exportCSV() {
+/**
+ * 戦術CSVをエクスポートする
+ */
+function exportTacticsCSV() {
     if (recordedData.length === 0) {
-        alert("エクスポートするデータがありません。");
+        alert("エクスポートする戦術データがありません。");
         return;
     }
 
-    // 1. 全てのタイムスタンプを0.5秒ごとに生成
     const lastTimestamp = Math.max(...recordedData.map(d => parseFloat(d.timestamp)));
     const allTimestamps = [];
     for (let t = 0; t <= lastTimestamp; t += 0.5) {
         allTimestamps.push(t.toFixed(1));
     }
     
-    // 2. 補完されたデータを作成
     const interpolatedData = allTimestamps.map(ts => {
         const frame = { timestamp: ts, positions: {} };
         players.forEach(player => {
-            // ts以前で最も新しいキーフレームを探す
             const lastRelevantFrame = recordedData
                 .filter(d => parseFloat(d.timestamp) <= parseFloat(ts))
                 .pop();
@@ -380,23 +554,20 @@ function exportCSV() {
                 pos = lastRelevantFrame.positions.find(p => p.id === player.id);
             }
             
-            // ▼▼▼ バグ修正: 直前のデータがない(t=0)場合はCSSから読み取る ▼▼▼
             if (lastRelevantFrame === undefined) { 
                 const style = window.getComputedStyle(player);
                 pos = {
                     x: Math.round(parseFloat(style.left || 0)),
                     y: Math.round(parseFloat(style.top || 0)),
-                    ball: 0 // t=0ではボール保持者はいないと仮定
+                    ball: 0
                 };
             }
-            // ▲▲▲▲▲▲▲▲▲▲▲▲▲
-
+            
             frame.positions[player.id] = pos || { x: 0, y: 0, ball: 0 };
         });
         return frame;
     });
 
-    // 3. CSV文字列を生成
     const playerIDs = Array.from(players).map(p => p.id).sort();
     const headers = ['timestamp', ...playerIDs.flatMap(id => [`${id}_x`, `${id}_y`, `${id}_ball`])];
     
@@ -410,8 +581,6 @@ function exportCSV() {
     });
     
     const csvContent = [headers.join(','), ...rows].join('\n');
-
-    // 4. ダウンロード処理
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);

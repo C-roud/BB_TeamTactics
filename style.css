@@ -6,15 +6,169 @@ body {
     align-items: center;
     flex-direction: column;
     min-height: 100vh;
-    margin: 20px 0; /* 上下に余白を追加 */
+    margin: 20px 0;
     background-color: #f0f0f0;
+    /* モーダル表示時に背景がスクロールしないように */
+    overflow: hidden; 
 }
+
+/* ▼▼▼ モーダル（ポップアップ）のスタイル ▼▼▼ */
+#modal-overlay {
+    position: fixed; /* 画面全体を覆う */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6); /* 半透明の黒い背景 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+#modal-content {
+    background-color: white;
+    padding: 25px 30px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    width: 95%; /* 幅を少し広げる */
+    max-width: 1200px; /* PCでの最大幅を広げる */
+    max-height: 90vh; /* モーダルの最大高 */
+    overflow-y: auto; /* 内容が多ければスクロール */
+}
+
+#modal-content h2 {
+    margin-top: 0;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 10px;
+}
+
+.modal-controls {
+    margin: 20px 0;
+    display: flex;
+    gap: 15px;
+}
+
+.modal-controls button {
+    padding: 10px 15px;
+    font-size: 16px;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+    background-color: #007bff;
+    color: white;
+}
+.modal-controls button:hover {
+    background-color: #0056b3;
+}
+#export-profiles-btn {
+    background-color: #6c757d;
+}
+#export-profiles-btn:hover {
+    background-color: #5a6268;
+}
+
+/* ▼▼▼【更新点】▼▼▼ */
+#player-profiles-form {
+    display: grid;
+    grid-template-columns: 1fr; /* 1列表示 */
+    gap: 10px; /* 行間のスペースを少し詰める */
+}
+
+/* フォームの説明文 */
+.form-instruction {
+    font-size: 14px;
+    color: #333;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+/* フォームの行の共通スタイル */
+.profile-input-row {
+    display: grid;
+    /* ID(80px), 身長(80px), エリア1-10(各1fr) */
+    grid-template-columns: 80px 80px repeat(10, 1fr); 
+    gap: 10px;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+/* フォームのヘッダー行のスタイル */
+.profile-input-row.header-row {
+    background-color: #f9f9f9;
+    padding-top: 10px;
+    border-bottom: 2px solid #ccc;
+    position: sticky; /* スクロールしてもヘッダーを固定 */
+    top: 0;
+}
+.profile-input-row.header-row label {
+    font-weight: bold;
+    font-size: 11px; /* 文字を小さくして情報量を増やす */
+    text-align: center;
+    line-height: 1.3; /* 2行のラベルの行間を調整 */
+}
+
+/* フォームの入力行のスタイル */
+.profile-input-row label {
+    font-weight: bold;
+    font-size: 14px;
+    text-align: center;
+}
+.profile-input-row input {
+    width: 100%;
+    padding: 8px 5px; /* パディングを調整 */
+    box-sizing: border-box; 
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    text-align: center;
+}
+/* ▲▲▲▲▲▲▲▲▲▲▲▲▲ */
+
+
+.modal-footer {
+    margin-top: 25px;
+    text-align: right;
+    border-top: 2px solid #f0f0f0;
+    padding-top: 20px;
+}
+
+#proceed-to-board-btn {
+    padding: 12px 25px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+    background-color: #28a745;
+    color: white;
+}
+#proceed-to-board-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+#proceed-to-board-btn:hover:not(:disabled) {
+    background-color: #218838;
+}
+
+/* メインコンテンツのロックスタイル */
+#main-content.content-locked {
+    filter: blur(5px); 
+    pointer-events: none; 
+    user-select: none;
+}
+
+
+/* --- 以下、既存の戦術ボードのスタイル --- */
 
 /* コートのコンテナ */
 #court-container {
     width: 1000px; 
     height: 536px;
-    background-image: url('court.jpg'); /* 画像ファイル名を適宜変更してください */
+    background-image: url('court.jpg'); 
     background-size: contain;
     background-repeat: no-repeat;
     border: 2px solid #333;
@@ -25,7 +179,7 @@ body {
 .player {
     width: 30px;
     height: 30px;
-    border-radius: 50%; /* 円形にする */
+    border-radius: 50%;
     position: absolute;
     cursor: grab;
     display: flex;
@@ -34,46 +188,41 @@ body {
     color: white;
     font-weight: bold;
     box-sizing: border-box;
-    border: 2px solid rgba(0, 0, 0, 0.5); /* 縁取りを少しつける */
-    /* ▼▼▼ ID表示を見やすくするスタイルを追加 ▼▼▼ */
+    border: 2px solid rgba(0, 0, 0, 0.5);
     font-size: 14px;
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.6); /* 文字に影をつけて読みやすくする */
-    user-select: none; /* テキストを選択できないようにする */
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
+    user-select: none;
 }
 
 /* チームごとの色分け */
 .team-a {
-    background-color: #007bff; /* 青色 */
+    background-color: #007bff; 
 }
-
 .team-b {
-    background-color: #dc3545; /* 赤色 */
+    background-color: #dc3545; 
 }
 
-/* ▼▼▼ プレイヤーの初期配置を追加 ▼▼▼ */
+/* プレイヤーの初期配置 */
 #blue1 { top: 250px; left: 283px; }
 #blue2 { top: 414px; left: 213px; }
 #blue3 { top: 90px; left: 215px; }
 #blue4 { top: 462px; left: 39px; }
 #blue5 { top: 35px; left: 34px; }
-
 #red1 { top: 249px; left: 319px; }
 #red2 { top: 442px; left: 238px; }
 #red3 { top: 62px; left: 238px; }
 #red4 { top: 503px; left: 38px; }
 #red5 { top: 2px; left: 38px; }
-/* ▲▲▲ ここまで ▲▲▲ */
-
 
 /* ボール保持者のスタイル */
 .ball-holder {
-    box-shadow: 0 0 10px 3px #ffc107; /* 黄色い光彩 */
+    box-shadow: 0 0 10px 3px #ffc107; 
     transform: scale(1.1);
 }
 
 /* クリックで選択されたプレイヤーのスタイル */
 .selected {
-    outline: 3px solid #00c3ff; /* 水色の枠線 */
+    outline: 3px solid #00c3ff; 
 }
 
 /* タイムライン操作パネル */

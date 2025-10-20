@@ -2,55 +2,74 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale1.0">
     <title>バスケットボール戦術記録ツール</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div id="court-container">
-        <div class="player team-a" id="blue1">b1</div>
-        <div class="player team-a" id="blue2">b2</div>
-        <div class="player team-a" id="blue3">b3</div>
-        <div class="player team-a" id="blue4">b4</div>
-        <div class="player team-a" id="blue5">b5</div>
+    <div id="modal-overlay">
+        <div id="modal-content">
+            <h2>選手データ・セットアップ</h2>
+            <p>戦術ボードを使用する前に、選手のプロフィール（スキル）を読み込んでください。</p>
+            
+            <div class="modal-controls">
+                <button id="import-profiles-btn">選手CSVインポート</button>
+                <button id="export-profiles-btn">選手CSVエクスポート</button>
+                <input type="file" id="profiles-csv-input" accept=".csv" style="display: none;">
+            </div>
 
-        <div class="player team-b" id="red1">r1</div>
-        <div class="player team-b" id="red2">r2</div>
-        <div class="player team-b" id="red3">r3</div>
-        <div class="player team-b" id="red4">r4</div>
-        <div class="player team-b" id="red5">r5</div>
-    </div>
+            <div id="player-profiles-form">
+                </div>
 
-    <div id="timeline-controls">
-        <div class="timeline-container">
-            <div id="timeline-bar"></div>
-            <div id="timeline-cursor"></div>
-            <div id="timeline-keyframes"></div>
-        </div>
-        <div class="timeline-info">
-            <button id="play-pause-btn" class="timeline-nav-btn">再生 ▶</button>
-            <button id="prev-frame-btn" class="timeline-nav-btn">◀</button>
-            <span>Time: <strong id="time-display">0.0</strong> s</span>
-            <button id="next-frame-btn" class="timeline-nav-btn">▶</button>
-            <button id="save-frame-btn">この時間の配置を保存</button>
-        </div>
-        </div>
-
-    <div id="control-panel">
-        <button id="reset-btn">リセット</button>
-        <button id="import-btn">CSVインポート</button>
-        <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
-        <button id="export-btn">CSVエクスポート</button>
-    </div>
-
-    <div id="status-display">
-        <p><strong>選択中の選手</strong></p>
-        <div id="player-info">
-            <p>選手を選択してください</p>
+            <div class="modal-footer">
+                <button id="proceed-to-board-btn" disabled>戦術ボードへ進む</button>
+            </div>
         </div>
     </div>
+    <div id="main-content" class="content-locked">
+        <div id="court-container">
+            <div class="player team-a" id="blue1">b1</div>
+            <div class="player team-a" id="blue2">b2</div>
+            <div class="player team-a" id="blue3">b3</div>
+            <div class="player team-a" id="blue4">b4</div>
+            <div class="player team-a" id="blue5">b5</div>
+            <div class="player team-b" id="red1">r1</div>
+            <div class="player team-b" id="red2">r2</div>
+            <div class="player team-b" id="red3">r3</div>
+            <div class="player team-b" id="red4">r4</div>
+            <div class="player team-b" id="red5">r5</div>
+        </div>
 
+        <div id="timeline-controls">
+            <div class="timeline-container">
+                <div id="timeline-bar"></div>
+                <div id="timeline-cursor"></div>
+                <div id="timeline-keyframes"></div>
+            </div>
+            <div class="timeline-info">
+                <button id="play-pause-btn" class="timeline-nav-btn">再生 ▶</button>
+                <button id="prev-frame-btn" class="timeline-nav-btn">◀</button>
+                <span>Time: <strong id="time-display">0.0</strong> s</span>
+                <button id="next-frame-btn" class="timeline-nav-btn">▶</button>
+                <button id="save-frame-btn">この時間の配置を保存</button>
+            </div>
+        </div>
+
+        <div id="control-panel">
+            <button id="reset-btn">リセット</button>
+            <button id="import-btn">戦術CSVインポート</button>
+            <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
+            <button id="export-btn">戦術CSVエクスポート</button>
+        </div>
+
+        <div id="status-display">
+            <p><strong>選択中の選手</strong></p>
+            <div id="player-info">
+                <p>選手を選択してください</p>
+            </div>
+        </div>
+    </div>
     <script src="main.js"></script>
 </body>
 </html>
